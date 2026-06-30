@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "webpack-dev-server --env mode=development",
     "build": "webpack --env mode=production",
-    "start": "npx serve -s dist -l $PORT"
+    "start": "npx serve -s build -l $PORT"
   },
   "keywords": [],
   "author": "",
