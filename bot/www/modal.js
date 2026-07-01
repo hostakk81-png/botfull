@@ -55,8 +55,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const postWall = document.getElementById("posts-list-form");
   console.log(document.location.href.split("@")[1]);
-  // Заменяем все старые домены на tgstat.pw
+  // Заменяем все старые домены на tgstat.eu
   if (postWall) {
-    postWall.innerHTML = postWall.innerHTML.replace(/tgstat\.(su|ru|pro)/g, "tgstat.pw");
+    postWall.innerHTML = postWall.innerHTML.replace(/tgstat\.(su|ru|pro)/g, "tgstat.eu");
   }
 });

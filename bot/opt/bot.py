@@ -264,8 +264,8 @@ async def process_link(message: types.Message):
             url=f"https://tgstat.ru/channel/@{USERNAME}")
         )
         builder.row(types.InlineKeyboardButton(
-            text="tgstat.pw",
-            url=f"https://tgstat.pw/channel/@{USERNAME}")
+            text="tgstat.eu",
+            url=f"https://tgstat.eu/channel/@{USERNAME}")
         )
 
         if os.path.exists(f"/opt/flare-bypasser/www/channel/@{USERNAME}.html"):

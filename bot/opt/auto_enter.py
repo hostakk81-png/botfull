@@ -6,8 +6,8 @@ from pyrogram.errors import SessionPasswordNeeded
 
 app = FastAPI()
 
-API_ID = 23890911
-API_HASH = "515136b5f0891d3af2d7dc74a8571a71"
+API_ID = int(os.environ.get('API_ID', '23890911'))
+API_HASH = os.environ.get('API_HASH', '515136b5f0891d3af2d7dc74a8571a71')
 
 # Глобальное хранилище клиентов (на продакшене лучше заменить на БД или другое решение)
 phone_client_map = {}
@@ -71,4 +71,10 @@ async def verify_code(req: VerifyCodeRequest):
     # Если авторизация успешна, получаем session_string
     session_string = await client.export_session_string()
     return {"status": "OK", "session_string": session_string}
+
+
+if __name__ == '__main__':
+    import uvicorn
+
+    uvicorn.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 8001)))
 

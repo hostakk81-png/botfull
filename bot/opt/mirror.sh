@@ -1,7 +1,7 @@
 #!/bin/bash
-# Полный скрипт для зеркалирования с кастомной структурой, заменяя все домены и поддомены на tgstat.pw
+# Полный скрипт для зеркалирования с кастомной структурой, заменяя все домены и поддомены на tgstat.eu
 OLD_DOMAIN="tgstat.ru"
-NEW_DOMAIN="tgstat.pw"
+NEW_DOMAIN="tgstat.eu"
 FLARESOLVERR_URL="http://localhost:8080"
 BASE_DIR="/opt/flare-bypasser/www"
 USER_AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36..."

