@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "dev": "webpack-dev-server --env mode=development",
-    "build": "webpack --env mode=production",
+    "build": "npx webpack --env mode=production",
     "start": "npx serve -s build -l $PORT"
   },
   "keywords": [],

