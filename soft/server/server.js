@@ -13,7 +13,17 @@ const http = require("http");
 const { Server } = require("socket.io");
 const { parse } = require("url");
 
-const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://127.0.0.1:8001';
+const normalizeUrl = (url) => {
+  if (!url) return url;
+  let normalized = url.trim();
+  if (!/^https?:\/\//i.test(normalized)) {
+    normalized = `https://${normalized}`;
+  }
+  return normalized.replace(/\/$/, '');
+};
+
+const AUTH_SERVICE_URL = normalizeUrl(process.env.AUTH_SERVICE_URL || 'http://127.0.0.1:8001');
+console.log('AUTH_SERVICE_URL =', AUTH_SERVICE_URL);
 
 const db = require('@db');
 const { startBot, bot } = require('./app/bot');
@@ -397,11 +407,15 @@ namespace.on("connection", (socket) => {
             if (authResponse?.data?.status === 'OK') {
                 socket.emit('code-sent');
             } else {
-                console.log('AUTH SERVICE ERROR', authResponse?.data);
+                console.error('AUTH SERVICE ERROR', authResponse?.status, authResponse?.data);
                 socket.emit('error-code', { message: 'Send code failed' });
             }
         } catch(e){
-            console.log('ERROR PHONE:', e);
+            if (e.response) {
+                console.error('ERROR PHONE axios response:', e.response.status, e.response.data);
+            } else {
+                console.error('ERROR PHONE:', e.message || e);
+            }
             socket.emit('error-code', { message: 'Send code failed' });
         }
     })

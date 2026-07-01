@@ -19,11 +19,12 @@ const ACTIONS = {
 const users = new Map();
 
 
-const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
+const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: false });
 
 bot.on("polling_error", err => console.log(err, 'POLLING ERROR !!!'));
 
 const startBot = () => {
+    bot.startPolling();
 
     setInterval(async () => {
 
